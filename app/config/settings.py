@@ -1,6 +1,6 @@
 """Application settings and configuration."""
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
 
@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     openrouter_api_key: str
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     
+    #Database Configuration + Pydantic to look for .env file
+    database_url: str
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", case_sensitive=False)
+    
     # API Configuration
     api_host: str = "0.0.0.0"
     api_port: int = 8000
@@ -27,10 +31,6 @@ class Settings(BaseSettings):
     
     # Logging Configuration
     log_level: str = "INFO"
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
 
 
 # Global settings instance

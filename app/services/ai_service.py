@@ -22,9 +22,7 @@ class AIService:
             base_url=settings.openrouter_base_url,
             headers={
                 "Authorization": f"Bearer {settings.openrouter_api_key}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://github.com/your-username/template-python-fastapi",
-                "X-Title": settings.app_name,
+                "Content-Type": "application/json"
             },
             timeout=60.0
         )
@@ -41,6 +39,7 @@ class AIService:
             "messages": messages,
             "max_tokens": request.max_tokens,
             "temperature": request.temperature,
+            "response_format": request.response_format, # Forces JSON mode
             "stream": request.stream,
         }
         
@@ -92,7 +91,7 @@ class AIService:
             ]
             
             logger.info(f"Retrieved {len(models)} models")
-            return models
+            return data
             
         except httpx.HTTPStatusError as e:
             error_msg = f"OpenRouter API error: {e.response.status_code} - {e.response.text}"
@@ -100,6 +99,36 @@ class AIService:
             raise Exception(error_msg)
         except Exception as e:
             error_msg = f"Error fetching models: {str(e)}"
+            logger.error(error_msg)
+            raise Exception(error_msg)
+        
+        
+
+        """Model info."""
+        try:
+            logger.info("Fetching available model info")
+            response = await self.client.get("/model")
+            response.raise_for_status()
+            
+            data = response.json()
+            model = data.get("data", [])
+            
+            models = ModelInfo(
+                    id=model.get("id", ""),
+                    name=model.get("name"),
+                    description=model.get("description"),
+                    pricing=model.get("pricing")
+                )
+            
+            logger.info(f"Retrieved model info")
+            return models
+            
+        except httpx.HTTPStatusError as e:
+            error_msg = f"OpenRouter API error: {e.response.status_code} - {e.response.text}"
+            logger.error(error_msg)
+            raise Exception(error_msg)
+        except Exception as e:
+            error_msg = f"Error fetching model: {str(e)}"
             logger.error(error_msg)
             raise Exception(error_msg)
     

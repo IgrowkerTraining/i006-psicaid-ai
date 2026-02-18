@@ -4,13 +4,16 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
+from app.models.models import Psychologist, Session 
 from app.config.settings import settings
 from app.core.logging import setup_logging, get_logger
 from app.api.v1 import api_router
 from app.models.schemas import RootResponse
 from app.services.ai_service import ai_service
+from app.core.database import engine, Base
 
+    
+    
 # Setup logging
 setup_logging()
 logger = get_logger(__name__)
@@ -21,11 +24,20 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     # Startup
     logger.info(f"Starting {settings.app_name} v{settings.app_version}")
+    # Generate tables in database if they don't exist
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database tables verified/created")
+        
+    except Exception as e:
+        logger.error(f"❌ Database setup failed: {e}")
+        
     yield
     # Shutdown
     await ai_service.close()
     logger.info("Application shutdown complete")
-
+        
 
 # Create FastAPI application
 app = FastAPI(
