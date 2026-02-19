@@ -30,8 +30,6 @@ async def create_chat_completion(
     system_message = ChatMessage(role="system", content=SYSTEM_PROMPT)
     request.messages.insert(0, system_message)
     
-    print(request)
-    
     try:
         logger.info(f"Chat completion request for model: {request.model}")
         response = await ai_service.chat_completion(request)

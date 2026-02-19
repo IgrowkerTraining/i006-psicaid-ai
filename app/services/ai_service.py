@@ -1,16 +1,26 @@
 """AI service for OpenRouter integration."""
 
+import json
 import httpx
 import uuid
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
 from app.config.settings import settings
-from app.models.schemas import ChatRequest, ChatResponse, ModelInfo
+from app.models.schemas import ChatRequest, ChatResponse, ModelInfo, ChatMessage
 from app.core.logging import get_logger
 from app.core.security import mask_api_key
 
 logger = get_logger(__name__)
+
+# ─── System prompt for clinical-note summarization ──────────────
+SUMMARIZE_SYSTEM_PROMPT = (
+    "You are a decoupled administrative agent. "
+    "Your ONLY task is to organize and summarize the clinical notes provided. "
+    "DO NOT add external info. DO NOT provide clinical interpretations. "
+    "Return a JSON object with the following keys: "
+    '"main_concern", "observations", "action_items", "follow_up".'
+)
 
 
 class AIService:
@@ -101,37 +111,42 @@ class AIService:
             error_msg = f"Error fetching models: {str(e)}"
             logger.error(error_msg)
             raise Exception(error_msg)
-        
-        
 
-        """Model info."""
+    # ── Summarize clinical notes ────────────────────────────────
+    async def summarize_notes(self, raw_notes: str) -> Dict[str, Any]:
+        """Send raw clinical notes to the AI and return a structured JSON summary."""
+
+        messages = [
+            {"role": "system", "content": SUMMARIZE_SYSTEM_PROMPT},
+            {"role": "user", "content": raw_notes},
+        ]
+
+        payload = {
+            "model": "openai/gpt-4o-mini",
+            "messages": messages,
+            "max_tokens": 2000,
+            "temperature": 0,
+            "response_format": {"type": "json_object"},
+            "stream": False,
+        }
+
         try:
-            logger.info("Fetching available model info")
-            response = await self.client.get("/model")
+            logger.info("Sending summarize request to OpenRouter")
+            response = await self.client.post("/chat/completions", json=payload)
             response.raise_for_status()
-            
+
             data = response.json()
-            model = data.get("data", [])
-            
-            models = ModelInfo(
-                    id=model.get("id", ""),
-                    name=model.get("name"),
-                    description=model.get("description"),
-                    pricing=model.get("pricing")
-                )
-            
-            logger.info(f"Retrieved model info")
-            return models
-            
-        except httpx.HTTPStatusError as e:
-            error_msg = f"OpenRouter API error: {e.response.status_code} - {e.response.text}"
+            content = data["choices"][0]["message"]["content"]
+            summary: Dict[str, Any] = json.loads(content)
+
+            logger.info("Summarization successful")
+            return summary
+
+        except (httpx.HTTPStatusError, KeyError, json.JSONDecodeError) as e:
+            error_msg = f"Summarize error: {e}"
             logger.error(error_msg)
             raise Exception(error_msg)
-        except Exception as e:
-            error_msg = f"Error fetching model: {str(e)}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
-    
+
     async def health_check(self) -> bool:
         """Check if the AI service is healthy."""
         try:
