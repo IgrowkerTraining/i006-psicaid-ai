@@ -2,21 +2,22 @@
 
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime 
 
 
 class ChatMessage(BaseModel):
     """Chat message model."""
-    role: str = Field(..., description="Message role: 'user', 'assistant', or 'system'")
+    role: str = Field(default="system", description="Message role: 'user', 'assistant', or 'system'")
     content: str = Field(..., description="Message content")
 
 
 class ChatRequest(BaseModel):
     """Chat completion request model."""
-    model: str = Field(default="openai/gpt-3.5-turbo", description="AI model to use")
+    model: str = Field(default="openai/gpt-4o-mini", description="AI model to use")
     messages: List[ChatMessage] = Field(..., description="List of chat messages")
-    max_tokens: Optional[int] = Field(default=1000, ge=1, le=4096, description="Maximum tokens to generate")
-    temperature: Optional[float] = Field(default=0.7, ge=0.0, le=2.0, description="Sampling temperature")
+    max_tokens: Optional[int] = Field(default=2000, ge=1, le=4096, description="Maximum tokens to generate")
+    temperature: Optional[float] = Field(default=0, ge=0.0, le=2.0, description="Sampling temperature")
+    response_format: Optional[Dict[str, Any]] = Field(default={"type": "json_object"}, description="Force JSON output")
     stream: Optional[bool] = Field(default=False, description="Enable streaming response")
 
 
@@ -27,7 +28,7 @@ class ChatResponse(BaseModel):
     created: int = Field(..., description="Creation timestamp")
     model: str = Field(..., description="Model used")
     choices: List[Dict[str, Any]] = Field(..., description="Response choices")
-    usage: Optional[Dict[str, int]] = Field(default=None, description="Token usage information")
+    usage: Optional[Dict[str, Any]] = Field(default=None, description="Token usage information")
 
 
 class ModelInfo(BaseModel):
@@ -59,3 +60,22 @@ class RootResponse(BaseModel):
     version: str = Field(..., description="Application version")
     docs: str = Field(..., description="Documentation URL")
     health: str = Field(..., description="Health check URL")
+
+
+# ─── Session Summarization Schemas ───────────────────────────────
+
+class SummarizeRequest(BaseModel):
+    """Request to summarize clinical session notes."""
+    psychologist_id: int = Field(..., description="ID of the psychologist who owns this session")
+    raw_notes: str = Field(
+        ...,
+        min_length=10,
+        description="Raw clinical notes from the session to be summarized by AI"
+    )
+
+
+class SummarizeResponse(BaseModel):
+    """Response after summarizing and persisting a session."""
+    session_id: int = Field(..., description="ID of the newly created session")
+    psychologist_id: int = Field(..., description="ID of the psychologist")
+    summary: Dict[str, Any] = Field(..., description="AI-generated structured summary (JSON)")

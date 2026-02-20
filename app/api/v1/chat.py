@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 
-from app.models.schemas import ChatRequest, ChatResponse, ModelInfo
+from app.models.schemas import ChatRequest, ChatResponse, ModelInfo, ChatMessage
 from app.services.ai_service import AIService
 from app.api.dependencies import get_ai_service
 from app.core.logging import get_logger
@@ -18,15 +18,18 @@ async def create_chat_completion(
     request: ChatRequest,
     ai_service: AIService = Depends(get_ai_service)
 ):
-    """
-    Create a chat completion using OpenRouter API.
     
-    - **model**: AI model to use (e.g., "openai/gpt-3.5-turbo")
-    - **messages**: List of chat messages
-    - **max_tokens**: Maximum tokens to generate (1-4096)
-    - **temperature**: Sampling temperature (0.0-2.0)
-    - **stream**: Enable streaming response (not yet implemented)
-    """
+    SYSTEM_PROMPT = (
+        "You are a decoupled administrative agent. "
+        "Your ONLY task is to organize and summarize the clinical notes provided. "
+        "DO NOT add external info. DO NOT provide clinical interpretations. "
+        "Output MUST be strictly JSON."
+    )
+    
+    # injects the system prompt at the beginning of message list
+    system_message = ChatMessage(role="system", content=SYSTEM_PROMPT)
+    request.messages.insert(0, system_message)
+    
     try:
         logger.info(f"Chat completion request for model: {request.model}")
         response = await ai_service.chat_completion(request)

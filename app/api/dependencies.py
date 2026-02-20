@@ -1,27 +1,22 @@
 """API dependencies and utilities."""
 
 from fastapi import HTTPException, status
-from typing import Optional
+from typing import AsyncGenerator, Optional
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.ai_service import ai_service
+from app.core.database import AsyncSessionLocal
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
 
 async def get_ai_service():
-    """Get AI service instance."""
-    try:
-        # Check if AI service is healthy
-        if not await ai_service.health_check():
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="AI service is currently unavailable"
-            )
-        return ai_service
-    except Exception as e:
-        logger.error(f"AI service dependency error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Failed to connect to AI service"
-        )
+    """Get AI service instance (lightweight – no health-check on every request)."""
+    return ai_service
+
+
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """Yield a database session and ensure it is closed after use."""
+    async with AsyncSessionLocal() as session:
+        yield session
