@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
-@router.post("/completions", response_model=ChatResponse)
+@router.post("/summary", response_model=ChatResponse)
 async def create_chat_completion(
     request: ChatRequest,
     ai_service: AIService = Depends(get_ai_service)
