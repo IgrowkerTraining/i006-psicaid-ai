@@ -6,14 +6,16 @@ from pydantic import ValidationError
 
 from app.models.schemas import (
 ChatRequest, 
-ChatResponse, 
 ModelInfo, 
 ChatMessage, 
 ClinicalSummary
 )
 from app.services.ai_service import AIService
-from app.api.dependencies import get_ai_service
+from app.api.dependencies import get_ai_service, get_db
 from app.core.logging import get_logger
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.models.models import Summaries
+
 
 logger = get_logger(__name__)
 
@@ -33,7 +35,8 @@ SYSTEM_PROMPT = (
 @router.post("/summary", response_model=ClinicalSummary)
 async def create_chat_completion(
     request: ChatRequest,
-    ai_service: AIService = Depends(get_ai_service)
+    ai_service: AIService = Depends(get_ai_service),
+    db: AsyncSession = Depends(get_db)
 ):
     
     # injects the system prompt at the beginning of message list
@@ -43,19 +46,29 @@ async def create_chat_completion(
     try:
         logger.info(f"Chat completion request for model: {request.model}")
         response = await ai_service.chat_completion(request)
-        
         raw_content = response.choices[0].get("message", {}).get("content")
         
-
         try:
             json_data = json.loads(raw_content)
             validated_summary = ClinicalSummary(**json_data)
-            return validated_summary
-            
+                
         except (json.JSONDecodeError, ValidationError) as e:
             logger.error(f"AI returned invalid JSON structure: {str(e)}")
             raise HTTPException(status_code=422, detail="AI response did not match clinical schema.")
 
+        # saves raw data from AI on database
+        try:
+            new_session = Summaries(
+                summary_data=response.model_dump()
+            )
+            db.add(new_session)
+            await db.commit()  
+            await db.refresh(new_session)
+            logger.info(f"Session {new_session.id} created")
+        except Exception as db_err:
+            logger.error(f"Database save failed: {str(db_err)}")
+        
+        return validated_summary
     
     except Exception as e:
         logger.error(f"Error in chat completion: {str(e)}")
