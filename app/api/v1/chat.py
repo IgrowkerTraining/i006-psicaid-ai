@@ -3,7 +3,13 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 
-from app.models.schemas import ChatRequest, ChatResponse, ModelInfo, ChatMessage
+from app.models.schemas import (
+ChatRequest, 
+ChatResponse, 
+ModelInfo, 
+ChatMessage, 
+ClinicalSummary
+)
 from app.services.ai_service import AIService
 from app.api.dependencies import get_ai_service
 from app.core.logging import get_logger
@@ -12,14 +18,7 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
-
-@router.post("/summary", response_model=ChatResponse)
-async def create_chat_completion(
-    request: ChatRequest,
-    ai_service: AIService = Depends(get_ai_service)
-):
-    
-    SYSTEM_PROMPT = (
+ SYSTEM_PROMPT = (
         "Eres un asistente administrativo clínico especializado. "
         "Tu tarea es transformar notas clínicas en una 'Memoria clínica del paciente' estructurada. "
         "Debes extraer la información y devolver estrictamente un objeto JSON con las siguientes claves: "
@@ -29,6 +28,12 @@ async def create_chat_completion(
         "El contenido debe ser redactado en un tono profesional y clínico en español, "
         "siguiendo fielmente la información proporcionada sin inventar datos."
     )
+
+@router.post("/summary", response_model=ClinicalSummary)
+async def create_chat_completion(
+    request: ChatRequest,
+    ai_service: AIService = Depends(get_ai_service)
+):
     
     # injects the system prompt at the beginning of message list
     system_message = ChatMessage(role="system", content=SYSTEM_PROMPT)
@@ -37,7 +42,17 @@ async def create_chat_completion(
     try:
         logger.info(f"Chat completion request for model: {request.model}")
         response = await ai_service.chat_completion(request)
-        return response
+        raw_content = response.choices[0].get("message").get("content")
+
+        try:
+            json_data = json.loads(raw_content)
+            validated_summary = ClinicalSummary(**json_data)
+            return validated_summary
+            
+        except (json.JSONDecodeError, ValidationError) as e:
+            logger.error(f"AI returned invalid JSON structure: {str(e)}")
+            raise HTTPException(status_code=422, detail="AI response did not match clinical schema.")
+            
     except Exception as e:
         logger.error(f"Error in chat completion: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
