@@ -20,10 +20,14 @@ async def create_chat_completion(
 ):
     
     SYSTEM_PROMPT = (
-        "You are a decoupled administrative agent. "
-        "Your ONLY task is to organize and summarize the clinical notes provided. "
-        "DO NOT add external info. DO NOT provide clinical interpretations. "
-        "Output MUST be strictly JSON."
+        "Eres un asistente administrativo clínico especializado. "
+        "Tu tarea es transformar notas clínicas en una 'Memoria clínica del paciente' estructurada. "
+        "Debes extraer la información y devolver estrictamente un objeto JSON con las siguientes claves: "
+        "'paciente', 'edad', 'frecuencia_sesiones', 'ultima_sesion', "
+        "'motivo_consulta', 'contexto_clinico', 'hipotesis_trabajo', "
+        "'intervenciones', 'evolucion', 'objetivos', 'proxima_sesion'. "
+        "El contenido debe ser redactado en un tono profesional y clínico en español, "
+        "siguiendo fielmente la información proporcionada sin inventar datos."
     )
     
     # injects the system prompt at the beginning of message list
