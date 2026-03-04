@@ -13,16 +13,6 @@ from app.core.security import mask_api_key
 
 logger = get_logger(__name__)
 
-# ─── System prompt for clinical-note summarization ──────────────
-SUMMARIZE_SYSTEM_PROMPT = (
-    "You are a decoupled administrative agent. "
-    "Your ONLY task is to organize and summarize the clinical notes provided. "
-    "DO NOT add external info. DO NOT provide clinical interpretations. "
-    "Return a JSON object with the following keys: "
-    '"main_concern", "observations", "action_items", "follow_up".'
-)
-
-
 class AIService:
     """Service for interacting with OpenRouter API."""
     
@@ -112,41 +102,7 @@ class AIService:
             logger.error(error_msg)
             raise Exception(error_msg)
 
-    # ── Summarize clinical notes ────────────────────────────────
-    async def summarize_notes(self, raw_notes: str) -> Dict[str, Any]:
-        """Send raw clinical notes to the AI and return a structured JSON summary."""
-
-        messages = [
-            {"role": "system", "content": SUMMARIZE_SYSTEM_PROMPT},
-            {"role": "user", "content": raw_notes},
-        ]
-
-        payload = {
-            "model": "openai/gpt-4o-mini",
-            "messages": messages,
-            "max_tokens": 2000,
-            "temperature": 0,
-            "response_format": {"type": "json_object"},
-            "stream": False,
-        }
-
-        try:
-            logger.info("Sending summarize request to OpenRouter")
-            response = await self.client.post("/chat/completions", json=payload)
-            response.raise_for_status()
-
-            data = response.json()
-            content = data["choices"][0]["message"]["content"]
-            summary: Dict[str, Any] = json.loads(content)
-
-            logger.info("Summarization successful")
-            return summary
-
-        except (httpx.HTTPStatusError, KeyError, json.JSONDecodeError) as e:
-            error_msg = f"Summarize error: {e}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
-
+    
     async def health_check(self) -> bool:
         """Check if the AI service is healthy."""
         try:
