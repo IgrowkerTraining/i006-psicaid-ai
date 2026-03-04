@@ -91,7 +91,7 @@ class AIService:
             ]
             
             logger.info(f"Retrieved {len(models)} models")
-            return data
+            return models
             
         except httpx.HTTPStatusError as e:
             error_msg = f"OpenRouter API error: {e.response.status_code} - {e.response.text}"
