@@ -69,7 +69,7 @@ class AIService:
             )
             
             logger.info(f"Chat completion successful: {chat_response.id}")
-            return data
+            return chat_response
             
         except httpx.HTTPStatusError as e:
             error_msg = f"OpenRouter API error: {e.response.status_code} - {e.response.text}"
