@@ -61,21 +61,3 @@ class RootResponse(BaseModel):
     docs: str = Field(..., description="Documentation URL")
     health: str = Field(..., description="Health check URL")
 
-
-# ─── Session Summarization Schemas ───────────────────────────────
-
-class SummarizeRequest(BaseModel):
-    """Request to summarize clinical session notes."""
-    psychologist_id: int = Field(..., description="ID of the psychologist who owns this session")
-    raw_notes: str = Field(
-        ...,
-        min_length=10,
-        description="Raw clinical notes from the session to be summarized by AI"
-    )
-
-
-class SummarizeResponse(BaseModel):
-    """Response after summarizing and persisting a session."""
-    session_id: int = Field(..., description="ID of the newly created session")
-    psychologist_id: int = Field(..., description="ID of the psychologist")
-    summary: Dict[str, Any] = Field(..., description="AI-generated structured summary (JSON)")
