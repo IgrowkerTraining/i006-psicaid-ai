@@ -31,6 +31,20 @@ class ChatResponse(BaseModel):
     usage: Optional[Dict[str, Any]] = Field(default=None, description="Token usage information")
 
 
+class ClinicalSummary(BaseModel):
+    paciente: str
+    edad: int | str
+    frecuencia_sesiones: str
+    ultima_sesion: str
+    motivo_consulta: str
+    contexto_clinico: str
+    hipotesis_trabajo: str
+    intervenciones: str
+    evolucion: str
+    objetivos: str
+    proxima_sesion: str
+
+
 class ModelInfo(BaseModel):
     """AI model information."""
     id: str = Field(..., description="Model ID")
