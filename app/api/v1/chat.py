@@ -1,7 +1,8 @@
 """Chat-related API endpoints."""
-
+import json
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
+from pydantic import ValidationError
 
 from app.models.schemas import (
 ChatRequest, 
@@ -18,16 +19,16 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
- SYSTEM_PROMPT = (
+SYSTEM_PROMPT = (
         "Eres un asistente administrativo clínico especializado. "
         "Tu tarea es transformar notas clínicas en una 'Memoria clínica del paciente' estructurada. "
         "Debes extraer la información y devolver estrictamente un objeto JSON con las siguientes claves: "
-        "'paciente', 'edad', 'frecuencia_sesiones', 'ultima_sesion', "
+        "'paciente' solamente con el nombre y apellido, 'edad', 'frecuencia_sesiones', 'ultima_sesion', "
         "'motivo_consulta', 'contexto_clinico', 'hipotesis_trabajo', "
         "'intervenciones', 'evolucion', 'objetivos', 'proxima_sesion'. "
         "El contenido debe ser redactado en un tono profesional y clínico en español, "
         "siguiendo fielmente la información proporcionada sin inventar datos."
-    )
+)
 
 @router.post("/summary", response_model=ClinicalSummary)
 async def create_chat_completion(
@@ -42,7 +43,9 @@ async def create_chat_completion(
     try:
         logger.info(f"Chat completion request for model: {request.model}")
         response = await ai_service.chat_completion(request)
-        raw_content = response.choices[0].get("message").get("content")
+        
+        raw_content = response.choices[0].get("message", {}).get("content")
+        
 
         try:
             json_data = json.loads(raw_content)
@@ -52,7 +55,8 @@ async def create_chat_completion(
         except (json.JSONDecodeError, ValidationError) as e:
             logger.error(f"AI returned invalid JSON structure: {str(e)}")
             raise HTTPException(status_code=422, detail="AI response did not match clinical schema.")
-            
+
+    
     except Exception as e:
         logger.error(f"Error in chat completion: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
